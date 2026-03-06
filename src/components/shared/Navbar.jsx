@@ -16,15 +16,19 @@ import {
   Settings,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession, signOut } from "next-auth/react";
 
 export const Navbar = () => {
+  const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const router = useRouter();
 
-  // Mock auth state
-  const isLoggedIn = true;
-  const userRole = "student"; // 'student' | 'instructor'
+  const isLoggedIn = status === "authenticated";
+  const user = session?.user;
+  const userRole = user?.role || "student";
+
+  const dashboardLink = userRole === "instructor" ? "/dashboard/instructor" : "/dashboard/student";
 
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
@@ -63,12 +67,14 @@ export const Navbar = () => {
 
             {isLoggedIn ?
               <div className="flex items-center gap-4">
-                <button className="relative p-2 text-slate-600 hover:bg-slate-50 rounded-full transition-colors">
-                  <ShoppingCart className="w-5 h-5" />
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-indigo-600 text-white text-[10px] flex items-center justify-center rounded-full">
-                    2
-                  </span>
-                </button>
+                {userRole === "student" && (
+                  <button className="relative p-2 text-slate-600 hover:bg-slate-50 rounded-full transition-colors">
+                    <ShoppingCart className="w-5 h-5" />
+                    <span className="absolute top-1 right-1 w-4 h-4 bg-indigo-600 text-white text-[10px] flex items-center justify-center rounded-full">
+                      0
+                    </span>
+                  </button>
+                )}
                 <button className="p-2 text-slate-600 hover:bg-slate-50 rounded-full transition-colors">
                   <Bell className="w-5 h-5" />
                 </button>
@@ -79,14 +85,18 @@ export const Navbar = () => {
                     className="flex items-center gap-2 p-1 pl-3 bg-slate-50 border border-slate-100 rounded-full hover:bg-slate-100 transition-colors"
                   >
                     <span className="text-xs font-semibold text-slate-700">
-                      Alex Johnson
+                      {user?.name || user?.username || "A"}
                     </span>
                     <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden">
-                      <img
-                        src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-                        alt="Avatar"
-                        className="w-full h-full object-cover"
-                      />
+                      {user?.image ? (
+                        <img
+                          src={user.image}
+                          alt="Avatar"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="text-indigo-600 w-4 h-4" />
+                      )}
                     </div>
                   </button>
 
@@ -100,18 +110,17 @@ export const Navbar = () => {
                       >
                         <div className="px-4 py-2 border-b border-slate-50 mb-2">
                           <p className="text-sm font-bold text-slate-900">
-                            Alex Johnson
+                            {user?.name || user?.username || "User"}
                           </p>
-                          <p className="text-xs text-slate-500">
-                            alex@example.com
+                          <p className="text-xs text-slate-500 line-clamp-1">
+                            {user?.email}
                           </p>
+                          <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 rounded">
+                            {userRole}
+                          </span>
                         </div>
                         <Link
-                          href={
-                            userRole === "instructor" ? "/instructor" : (
-                              "/dashboard"
-                            )
-                          }
+                          href={dashboardLink}
                           className="flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
                         >
                           <Layout className="w-4 h-4" /> Dashboard
@@ -123,7 +132,7 @@ export const Navbar = () => {
                           <Settings className="w-4 h-4" /> Settings
                         </Link>
                         <button
-                          onClick={() => router.push("/login")}
+                          onClick={() => signOut({ callbackUrl: "/login" })}
                           className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                         >
                           <LogOut className="w-4 h-4" /> Sign Out
@@ -140,7 +149,7 @@ export const Navbar = () => {
                 >
                   Log In
                 </Link>
-                <Link href="/signup" className="btn-primary py-2 px-5 text-sm">
+                <Link href="/signup" className="bg-indigo-600 text-white font-bold py-2.5 px-6 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 text-sm">
                   Sign Up
                 </Link>
               </div>
@@ -185,21 +194,28 @@ export const Navbar = () => {
               >
                 Explore
               </Link>
-              <Link
-                href="/dashboard"
-                className="block px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
-              >
-                My Learning
-              </Link>
+              {isLoggedIn && (
+                <Link
+                  href={dashboardLink}
+                  className="block px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
+                >
+                  Dashboard
+                </Link>
+              )}
               <Link
                 href="/settings"
                 className="block px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
               >
                 Settings
               </Link>
-              <button className="w-full text-left px-3 py-2 text-base font-medium text-red-600 hover:bg-red-50 rounded-lg">
-                Sign Out
-              </button>
+              {isLoggedIn && (
+                <button
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="w-full text-left px-3 py-2 text-base font-medium text-red-600 hover:bg-red-50 rounded-lg"
+                >
+                  Sign Out
+                </button>
+              )}
             </div>
           </motion.div>
         )}

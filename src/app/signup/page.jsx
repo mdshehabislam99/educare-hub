@@ -138,6 +138,39 @@ export default function SignupPage() {
                             </Field>
 
                             <Field>
+                                <FieldLabel className="text-slate-700 font-semibold mb-2">I want to join as</FieldLabel>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <label className={`
+                                        flex flex-col items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all
+                                        ${register("role").value === "student" ? "border-indigo-600 bg-indigo-50" : "border-slate-200 bg-white hover:border-indigo-300"}
+                                    `}>
+                                        <input
+                                            type="radio"
+                                            value="student"
+                                            className="hidden"
+                                            defaultChecked
+                                            {...register("role")}
+                                        />
+                                        <span className="font-bold text-slate-900">Student</span>
+                                        <span className="text-xs text-slate-500">I want to learn</span>
+                                    </label>
+                                    <label className={`
+                                        flex flex-col items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all
+                                        ${register("role").value === "instructor" ? "border-indigo-600 bg-indigo-50" : "border-slate-200 bg-white hover:border-indigo-300"}
+                                    `}>
+                                        <input
+                                            type="radio"
+                                            value="instructor"
+                                            className="hidden"
+                                            {...register("role")}
+                                        />
+                                        <span className="font-bold text-slate-900">Instructor</span>
+                                        <span className="text-xs text-slate-500">I want to teach</span>
+                                    </label>
+                                </div>
+                            </Field>
+
+                            <Field>
                                 <FieldLabel htmlFor="email" className="text-slate-700 font-semibold">Email</FieldLabel>
                                 <Input
                                     id="email"

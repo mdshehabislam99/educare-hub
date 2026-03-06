@@ -1,33 +1,35 @@
-import { jwtVerify } from "jose";
+import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
-
 export async function proxy(req) {
-    const url = req.nextUrl.clone();
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const { pathname } = req.nextUrl;
 
-    // Only protect /dashboard routes
-    if (url.pathname.startsWith("/dashboard")) {
-        const token = req.cookies.get("token")?.value;
+    // 1. If not logged in and trying to access protected routes
+    if (!token && pathname.startsWith("/dashboard")) {
+        return NextResponse.redirect(new URL("/login", req.url));
+    }
 
-        // If token missing → redirect to login
-        if (!token) {
-            url.pathname = "/login";
-            return NextResponse.redirect(url);
+    // 2. Role-based Redirection for base /dashboard
+    if (token && pathname === "/dashboard") {
+        if (token.role === "instructor") {
+            return NextResponse.redirect(new URL("/dashboard/instructor", req.url));
         }
+        return NextResponse.redirect(new URL("/dashboard/student", req.url));
+    }
 
-        try {
-            // Verify custom JWT token using jose (Edge Runtime compatible)
-            await jwtVerify(token, JWT_SECRET);
-            return NextResponse.next();
-        } catch (err) {
-            // Invalid token → redirect to login
-            url.pathname = "/login";
-            return NextResponse.redirect(url);
+    // 3. Protect Instructor Routes
+    if (pathname.startsWith("/dashboard/instructor") && token?.role !== "instructor") {
+        return NextResponse.redirect(new URL("/dashboard/student", req.url));
+    }
+
+    // 4. Protect Student Routes (Optional but good)
+    if (pathname.startsWith("/dashboard/student") && token?.role !== "student") {
+        if (token?.role === "instructor") {
+            return NextResponse.redirect(new URL("/dashboard/instructor", req.url));
         }
     }
 
-    // For all other routes → allow
     return NextResponse.next();
 }
 
