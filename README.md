@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Educare Hub
+Educare Hub is a full-stack learning platform built with Next.js where students can browse courses, add to cart, buy/enroll, and track progress, while instructors can create and manage courses from a role-based dashboard.
 
-## Getting Started
+## Setup & Installation
+# Prerequisites
+- Node.js 18+
+- npm
+- MongoDB database (local or Atlas)
 
-First, run the development server:
+# 1. Clone and install dependencies
+git clone <your-repo-url>
+cd educare-hub
+npm install
 
-```bash
+# 2. Configure environment variables
+Create .env.local or .env with:
+MONGODB_URI=your_mongodb_connection_string
+DB_NAME=your_database_name
+NEXTAUTH_SECRET=your_nextauth_secret
+NEXTAUTH_URL=http://localhost:3000
+JWT_SECRET=your_jwt_secret
+GOOGLE_ID=your_google_client_id
+GOOGLE_SECRET=your_google_client_secret
+
+
+# 3. Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Open http://localhost:3000
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+# 4. Production build
+npm run build
+npm run start
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+## Route Summary
+# Public pages
+- `/` Home
+- `/about` About page
+- `/course` Course listing
+- `/course/[id]` Course details + add to cart + buy now
+- `/login` Login
+- `/signup` Registration
+- `/profile` User profile
+- `/cart` Student cart
+- `/privacy` Privacy policy
+- `/terms` Terms and conditions
 
-To learn more about Next.js, take a look at the following resources:
+# Dashboard pages (protected)
+- `/dashboard` Auto-redirects by role
+- `/dashboard/student` Student dashboard (enrollments data)
+- `/dashboard/student/my-enrollments` Student enrolled courses
+- `/dashboard/instructor` Instructor dashboard (course analytics)
+- `/dashboard/instructor/manage-course` Instructor course list/manage
+- `/dashboard/instructor/create-course` Create course
+- `/dashboard/instructor/edit-course/[id]` Edit course
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# API routes
+- `POST /api/login` Login with credentials + JWT cookie
+- `POST /api/signup` Register user
+- `POST /api/logout` Logout
+- `GET /api/auth/[...nextauth]` NextAuth handlers
+- `POST /api/auth/[...nextauth]` NextAuth handlers
+- `GET /api/course` Fetch all courses (or by `instructorId` query)
+- `POST /api/course` Create course
+- `GET /api/course/[id]` Get one course
+- `PUT /api/course/[id]` Update course
+- `DELETE /api/course/[id]` Delete course
+- `GET /api/my-courses` Instructor’s own courses
+- `GET /api/my-enrollments` Student enrollments with course details
+- `POST /api/my-enrollments` Enroll student in a course (buy now)
+- `GET /api/cart` Get cart items + count
+- `POST /api/cart` Add course to cart
+- `DELETE /api/cart` Remove course from cart
+- `POST /api/upload` Upload endpoint
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Access control
+- `/dashboard/*` routes are protected via `src/proxy.js`.
+- Role rules:
+  - `student` can access student dashboard routes.
+  - `instructor` can access instructor dashboard routes.
+  - `/dashboard` redirects to role-specific dashboard.

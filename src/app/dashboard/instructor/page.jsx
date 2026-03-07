@@ -1,298 +1,217 @@
 "use client";
 
-import React from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Plus,
-  Users,
-  BookOpen,
-  DollarSign,
-  Edit,
-  Star,
-  Loader2,
-  TrendingUp,
-  ArrowUpRight,
-} from "lucide-react";
 import { useSession } from "next-auth/react";
+import {
+  ArrowRight,
+  BookOpen,
+  CircleDollarSign,
+  GraduationCap,
+  Loader2,
+  Plus,
+  Star,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 
 export default function InstructorDashboard() {
   const { data: session } = useSession();
-  const [courses, setCourses] = React.useState([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const userName =
-    session?.user?.name || session?.user?.username || "Instructor";
+  const [courses, setCourses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  React.useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const res = await fetch("/api/my-courses", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          setCourses(data);
-        }
-      } catch (error) {
-        console.error("Error fetching instructor courses:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const userName = session?.user?.name || session?.user?.username || "Instructor";
 
-    if (session) {
-      fetchCourses();
+  const fetchCourses = useCallback(async () => {
+    try {
+      const res = await fetch("/api/my-courses", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setCourses(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching instructor courses:", error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [session]);
+  }, []);
 
-  const totalStudents = courses.reduce(
-    (acc, c) => acc + (c.studentsCount || 0),
-    0,
-  );
-  const totalRevenue = courses.reduce(
-    (acc, c) => acc + parseFloat(c.price || 0) * (c.studentsCount || 0),
-    0,
-  );
-  const activeCourses = courses.length;
-  const avgRating =
-    courses.length > 0 ?
-      (
-        courses.reduce((acc, c) => acc + (c.rating || 0), 0) / courses.length
-      ).toFixed(1)
-    : "0.0";
+  useEffect(() => {
+    if (!session) return;
+
+    fetchCourses();
+
+    const intervalId = setInterval(fetchCourses, 30000);
+    const handleFocus = () => fetchCourses();
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [session, fetchCourses]);
+
+  const stats = useMemo(() => {
+    const totalCourses = courses.length;
+    const totalStudents = courses.reduce((acc, c) => acc + Number(c.studentsCount || 0), 0);
+    const totalRevenue = courses.reduce(
+      (acc, c) => acc + Number(c.price || 0) * Number(c.studentsCount || 0),
+      0
+    );
+    const avgRating =
+      totalCourses > 0
+        ? (
+            courses.reduce((acc, c) => acc + Number(c.rating || 0), 0) / totalCourses
+          ).toFixed(1)
+        : "0.0";
+
+    return { totalCourses, totalStudents, totalRevenue, avgRating };
+  }, [courses]);
+
+  const maxStudents = useMemo(() => {
+    if (courses.length === 0) return 1;
+    return Math.max(...courses.map((course) => Number(course.studentsCount || 0)), 1);
+  }, [courses]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2 font-display uppercase tracking-tight">
-            Instructor Hub
-          </h1>
-          <p className="text-slate-500 font-medium">
-            Monitoring your educational impact in real-time.
+    <div className="space-y-8 pb-10">
+      <section className="rounded-3xl p-6 md:p-10 text-white bg-gradient-to-r from-slate-900 via-indigo-900 to-cyan-800 relative overflow-hidden">
+        <div className="absolute -right-16 -top-16 w-56 h-56 bg-white/10 rounded-full blur-2xl" />
+        <div className="relative">
+          <p className="text-xs uppercase tracking-[0.24em] text-indigo-100 font-bold">Instructor Workspace</p>
+          <h1 className="text-3xl md:text-5xl font-black mt-3">Welcome back, {userName}</h1>
+          <p className="text-indigo-100 mt-3 max-w-2xl">
+            Your dashboard is powered by live database data from your courses. Metrics refresh automatically every 30 seconds.
           </p>
-        </div>
-        <Link
-          href="/dashboard/instructor/create-course"
-          className="bg-slate-900 text-white font-bold py-4 px-8 rounded-2xl hover:bg-slate-800 transition-all shadow-md shadow-indigo-50 flex items-center gap-2 group"
-        >
-          <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-          Launch New Course
-        </Link>
-      </div>
-
-      {/* Premium Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          {
-            label: "Revenue",
-            value: `$${totalRevenue.toLocaleString()}`,
-            icon: DollarSign,
-            trend: "+12.5%",
-            color: "emerald",
-          },
-          {
-            label: "Students",
-            value: totalStudents.toLocaleString(),
-            icon: Users,
-            trend: "+43",
-            color: "indigo",
-          },
-          {
-            label: "Courses",
-            value: activeCourses.toString(),
-            icon: BookOpen,
-            trend: "Active",
-            color: "amber",
-          },
-          {
-            label: "Avg Rating",
-            value: avgRating,
-            icon: Star,
-            trend: "Top 5%",
-            color: "rose",
-          },
-        ].map((stat, i) => (
-          <div
-            key={i}
-            className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 p-4">
-              <ArrowUpRight className="w-4 h-4 text-slate-200 group-hover:text-slate-400 transition-colors" />
-            </div>
-            <div className="flex flex-col h-full justify-between">
-              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-6">
-                <stat.icon className="text-indigo-600 w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
-                  {stat.label}
-                </h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-slate-900 tracking-tighter">
-                    {stat.value}
-                  </span>
-                  <span
-                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-50 text-green-600`}
-                  >
-                    {stat.trend}
-                  </span>
-                </div>
-              </div>
-            </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/dashboard/instructor/create-course" className="px-5 py-3 rounded-xl bg-white text-slate-900 font-bold text-sm inline-flex items-center gap-2">
+              <Plus className="w-4 h-4" /> Create Course
+            </Link>
+            <Link href="/dashboard/instructor/manage-course" className="px-5 py-3 rounded-xl border border-white/30 text-white font-bold text-sm">
+              Manage Courses
+            </Link>
           </div>
-        ))}
-      </div>
+        </div>
+      </section>
 
-      <div className="grid lg:grid-cols-3 gap-10">
-        {/* Courses Performance */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex justify-between items-center px-2">
-            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-              Performance Matrix
-            </h2>
-            <Link
-              href="/dashboard/instructor/manage-course"
-              className="text-sm font-bold text-indigo-600 flex items-center gap-1 hover:underline"
-            >
-              Full Management <ArrowUpRight className="w-4 h-4" />
+      <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Total Courses", value: stats.totalCourses, icon: BookOpen },
+          { label: "Total Students", value: stats.totalStudents, icon: Users },
+          { label: "Total Revenue", value: `$${stats.totalRevenue.toLocaleString()}`, icon: CircleDollarSign },
+          { label: "Avg Rating", value: stats.avgRating, icon: Star },
+        ].map((item) => (
+          <article key={item.label} className="bg-white border border-slate-200 rounded-2xl p-5">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+              <item.icon className="w-5 h-5" />
+            </div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-bold">{item.label}</p>
+            <p className="text-3xl font-black text-slate-900 mt-1">{item.value}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-3xl p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-xl font-black text-slate-900">Course Performance</h2>
+            <Link href="/dashboard/instructor/manage-course" className="text-sm font-semibold text-indigo-600 inline-flex items-center gap-1">
+              See all <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50/50">
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Master Course
-                    </th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
-                      Engagement
-                    </th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
-                      Gross
-                    </th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
-                      Edit
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {courses.length === 0 ?
-                    <tr>
-                      <td colSpan="4" className="px-8 py-20 text-center">
-                        <div className="flex flex-col items-center gap-4">
-                          <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center">
-                            <BookOpen className="w-8 h-8 text-slate-200" />
-                          </div>
-                          <p className="font-bold text-slate-400">
-                            No active deployments yet.
-                          </p>
-                          <Link
-                            href="/dashboard/instructor/create-course"
-                            className="text-sm font-bold text-indigo-600 underline"
-                          >
-                            Start your first course
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  : courses.slice(0, 5).map((course) => (
-                      <tr
-                        key={course._id}
-                        className="hover:bg-slate-50/50 transition-colors group"
+          {courses.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center">
+              <GraduationCap className="w-8 h-8 text-slate-300 mx-auto" />
+              <p className="mt-3 text-slate-600 font-semibold">No courses published yet</p>
+              <Link href="/dashboard/instructor/create-course" className="mt-4 inline-block px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold text-sm">
+                Publish First Course
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {courses.slice(0, 5).map((course) => {
+                const students = Number(course.studentsCount || 0);
+                const popularityPercent = Math.max(8, Math.round((students / maxStudents) * 100));
+                const revenue = Number(course.price || 0) * students;
+                return (
+                  <article key={course._id || course.id} className="rounded-2xl border border-slate-200 p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.18em] text-indigo-600 font-bold">
+                          {course.category || "General"}
+                        </p>
+                        <h3 className="text-lg font-bold text-slate-900 mt-1 line-clamp-1">{course.title}</h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                          {students} students • ${revenue.toLocaleString()} revenue
+                        </p>
+                      </div>
+                      <Link
+                        href={`/dashboard/instructor/edit-course/${course._id || course.id}`}
+                        className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold text-center"
                       >
-                        <td className="px-8 py-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl overflow-hidden shrink-0 bg-slate-100 relative shadow-sm">
-                              <img
-                                src={course.thumbnail}
-                                alt=""
-                                className="w-full h-full object-cover"
-                              />
-                              <div className="absolute inset-0 bg-black/5" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-slate-900 line-clamp-1 uppercase tracking-tight">
-                                {course.title}
-                              </p>
-                              <p className="text-[10px] font-bold text-slate-400">
-                                {course.category}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 text-center">
-                          <div className="flex flex-col items-center">
-                            <span className="text-sm font-black text-slate-900">
-                              {course.studentsCount || 0}
-                            </span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">
-                              Users
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 text-center">
-                          <span className="text-sm font-black text-slate-900">
-                            $
-                            {(
-                              parseFloat(course.price || 0) *
-                              (course.studentsCount || 0)
-                            ).toLocaleString()}
-                          </span>
-                        </td>
-                        <td className="px-8 py-6 text-right">
-                          <Link
-                            href={`/dashboard/instructor/edit-course/${course._id}`}
-                            className="inline-flex p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
+                        Edit
+                      </Link>
+                    </div>
+                    <div className="mt-4">
+                      <div className="flex justify-between text-xs font-bold text-slate-500 mb-1">
+                        <span>Popularity</span>
+                        <span>{popularityPercent}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${popularityPercent}%` }} />
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Growth & Feedback */}
-        <div className="space-y-8">
-          {/* Growth Card */}
-          <div className="bg-indigo-600 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-md shadow-indigo-50">
-            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-white/20 rounded-xl">
-                  <TrendingUp className="w-5 h-5 text-white" />
-                </div>
-                <h3 className="font-bold text-sm tracking-tight">
-                  Growth Insights
-                </h3>
-              </div>
-              <p className="text-2xl font-black mb-2">Build dynamic labs</p>
-              <p className="text-indigo-100 text-sm leading-relaxed mb-6 opacity-80">
-                Students engaging with labs are 5x more likely to complete your
-                kurs.
+        <aside className="bg-white border border-slate-200 rounded-3xl p-6">
+          <h2 className="text-xl font-black text-slate-900">Growth Insights</h2>
+          <p className="text-sm text-slate-500 mt-1">Realtime overview of your teaching business.</p>
+
+          <div className="mt-5 space-y-4">
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500 font-bold">Performance</p>
+              <p className="text-sm text-slate-700 mt-2 inline-flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-indigo-600" />
+                {stats.totalStudents > 0
+                  ? "Your courses are actively reaching students."
+                  : "Publish a course to start tracking growth."}
               </p>
-              <button className="w-full py-3 bg-white text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-50 transition-all">
-                Upgrade Content
-              </button>
             </div>
-          </div>
 
-         
-        </div>
-      </div>
+            <Link
+              href="/dashboard/instructor/create-course"
+              className="block rounded-2xl border border-slate-200 p-4 hover:border-indigo-300 hover:bg-indigo-50/40 transition-colors"
+            >
+              <p className="text-xs uppercase tracking-[0.18em] text-cyan-700 font-bold">Action</p>
+              <h3 className="font-bold text-slate-900 mt-1">Create a New Course</h3>
+              <p className="text-sm text-slate-600 mt-2">Add new content and grow your enrollments.</p>
+            </Link>
+
+            <Link
+              href="/dashboard/instructor/manage-course"
+              className="block rounded-2xl border border-slate-200 p-4 hover:border-indigo-300 hover:bg-indigo-50/40 transition-colors"
+            >
+              <p className="text-xs uppercase tracking-[0.18em] text-cyan-700 font-bold">Action</p>
+              <h3 className="font-bold text-slate-900 mt-1">Manage Existing Courses</h3>
+              <p className="text-sm text-slate-600 mt-2">Update pricing, content, and publishing details.</p>
+            </Link>
+          </div>
+        </aside>
+      </section>
     </div>
   );
 }
