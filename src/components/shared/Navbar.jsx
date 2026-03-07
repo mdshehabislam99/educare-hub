@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ShoppingCart,
   User,
@@ -19,8 +20,10 @@ import { useTheme } from "@/components/ThemeProvider";
 
 export const Navbar = () => {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const { theme, toggleTheme } = useTheme();
 
   const isLoggedIn = status === "authenticated";
@@ -28,6 +31,26 @@ export const Navbar = () => {
   const userRole = user?.role || "student";
 
   const dashboardLink = userRole === "instructor" ? "/dashboard/instructor" : "/dashboard/student";
+
+  React.useEffect(() => {
+    if (!isLoggedIn || userRole !== "student") return;
+
+    const fetchCartCount = async () => {
+      try {
+        const res = await fetch("/api/cart", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        setCartCount(data.count || 0);
+      } catch (error) {
+        console.error("Failed to load cart count:", error);
+      }
+    };
+
+    fetchCartCount();
+    window.addEventListener("cart-updated", fetchCartCount);
+
+    return () => window.removeEventListener("cart-updated", fetchCartCount);
+  }, [isLoggedIn, userRole, pathname]);
 
   return (
     <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800">
@@ -77,12 +100,17 @@ export const Navbar = () => {
             {isLoggedIn ?
               <div className="flex items-center gap-4">
                 {userRole === "student" && (
-                  <button className="relative p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors">
+                  <Link
+                    href="/cart"
+                    className="relative p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors"
+                  >
                     <ShoppingCart className="w-5 h-5" />
-                    <span className="absolute top-1 right-1 w-4 h-4 bg-indigo-600 text-white text-[10px] flex items-center justify-center rounded-full">
-                      0
-                    </span>
-                  </button>
+                    {cartCount > 0 && (
+                      <span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-indigo-600 text-white text-[10px] flex items-center justify-center rounded-full">
+                        {cartCount > 99 ? "99+" : cartCount}
+                      </span>
+                    )}
+                  </Link>
                 )}
 
                 <div className="relative">
@@ -126,7 +154,7 @@ export const Navbar = () => {
                           </span>
                         </div>
                         <Link
-                          href="/dashboard"
+                          href="/profile"
                           className="flex items-center gap-3 px-4 py-2 text-sm text-slate-600 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-800 hover:text-indigo-600 transition-colors"
                         >
                           <User className="w-4 h-4" /> Profile
@@ -226,11 +254,21 @@ export const Navbar = () => {
               )}
               {isLoggedIn && (
                 <Link
-                  href="/dashboard"
+                  href="/profile"
                   className="block px-3 py-2 text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg"
                 >
                   Profile
                 </Link>
+              )}
+              {isLoggedIn && (
+                userRole === "student" && (
+                  <Link
+                    href="/cart"
+                    className="block px-3 py-2 text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg"
+                  >
+                    Cart {cartCount > 0 ? `(${cartCount})` : ""}
+                  </Link>
+                )
               )}
               {isLoggedIn && (
                 <Link

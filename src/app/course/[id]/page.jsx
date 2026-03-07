@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Star,
@@ -20,6 +20,7 @@ import { useSession } from "next-auth/react";
 
 export default function CourseDetailsPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params?.id;
   const { data: session } = useSession();
 
@@ -48,21 +49,64 @@ export default function CourseDetailsPage() {
     fetchCourse();
   }, [id]);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
+    if (!session?.user) {
+      router.push("/login");
+      return;
+    }
+
     setIsAddingToCart(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId: id }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setCartMessage(data.error || "Failed to add to cart.");
+      } else {
+        setCartMessage(data.message || "Added to cart!");
+        window.dispatchEvent(new Event("cart-updated"));
+      }
+    } catch (error) {
+      console.error("Add to cart error:", error);
+      setCartMessage("Failed to add to cart.");
+    } finally {
       setIsAddingToCart(false);
-      setCartMessage("Added to cart!");
       setTimeout(() => setCartMessage(""), 3000);
-    }, 800);
+    }
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
+    if (!session?.user) {
+      router.push("/login");
+      return;
+    }
+
     setIsBuying(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/my-enrollments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId: id }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Enrollment failed.");
+        return;
+      }
+
+      window.dispatchEvent(new Event("cart-updated"));
+      router.push("/dashboard/student");
+    } catch (error) {
+      console.error("Buy now error:", error);
+      alert("Enrollment failed.");
+    } finally {
       setIsBuying(false);
-      alert("Redirecting to checkout...");
-    }, 800);
+    }
   };
 
   if (isLoading) {

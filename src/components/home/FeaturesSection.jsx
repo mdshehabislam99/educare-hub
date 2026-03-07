@@ -24,6 +24,21 @@ const features = [
      },
 ];
 
+const colorClasses = {
+     indigo: {
+          bg: "bg-indigo-100",
+          text: "text-indigo-600",
+     },
+     blue: {
+          bg: "bg-blue-100",
+          text: "text-blue-600",
+     },
+     orange: {
+          bg: "bg-orange-100",
+          text: "text-orange-600",
+     },
+};
+
 const FeaturesSection = () => {
      return (
        <section>
@@ -40,16 +55,17 @@ const FeaturesSection = () => {
 
            <div className="grid md:grid-cols-3 gap-8">
              {features.map((feature, i) => (
+               (() => {
+                 const classes = colorClasses[feature.color] || colorClasses.indigo;
+                 return (
                <div
                  key={i}
                  className="bg-white  shadow-md shadow-indigo-50 border border-slate-300 rounded-3xl p-8 group"
                >
                  <div
-                   className={`w-14 h-14 bg-${feature.color}-100 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}
+                   className={`w-14 h-14 ${classes.bg} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}
                  >
-                   <feature.icon
-                     className={`text-${feature.color}-600 w-8 h-8`}
-                   />
+                   <feature.icon className={`${classes.text} w-8 h-8`} />
                  </div>
                  <h3 className="text-xl font-bold text-slate-900 mb-3">
                    {feature.title}
@@ -58,6 +74,8 @@ const FeaturesSection = () => {
                    {feature.desc}
                  </p>
                </div>
+                 );
+               })()
              ))}
            </div>
          </div>

@@ -59,3 +59,73 @@ export async function GET(req) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+
+export async function POST(req) {
+    try {
+        const session = await getServerSession(authOptions);
+
+        if (!session?.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { courseId } = await req.json();
+
+        if (!courseId) {
+            return NextResponse.json({ error: "Course ID is required" }, { status: 400 });
+        }
+
+        const db = await connectToDatabase();
+        const enrollmentsCollection = db.collection("enrollments");
+        const coursesCollection = db.collection("courses");
+        const cartCollection = db.collection("cart");
+
+        const userId = session.user.id || session.user.email;
+
+        let course = null;
+        try {
+            course = await coursesCollection.findOne({ _id: new ObjectId(courseId) });
+        } catch (e) {
+            course = await coursesCollection.findOne({ id: courseId });
+        }
+
+        if (!course) {
+            return NextResponse.json({ error: "Course not found" }, { status: 404 });
+        }
+
+        const normalizedCourseId = course._id?.toString() || course.id || courseId;
+
+        const existingEnrollment = await enrollmentsCollection.findOne({
+            userId,
+            courseId: normalizedCourseId,
+        });
+
+        if (existingEnrollment) {
+            return NextResponse.json(
+                { message: "Already enrolled in this course" },
+                { status: 200 }
+            );
+        }
+
+        await enrollmentsCollection.insertOne({
+            userId,
+            courseId: normalizedCourseId,
+            progress: 0,
+            nextLesson: "Getting Started",
+            enrolledAt: new Date(),
+            updatedAt: new Date(),
+        });
+
+        await cartCollection.deleteOne({
+            userId,
+            courseId: normalizedCourseId,
+        });
+
+        return NextResponse.json(
+            { message: "Enrollment successful" },
+            { status: 201 }
+        );
+    } catch (error) {
+        console.error("Enrollment create error:", error);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    }
+}
